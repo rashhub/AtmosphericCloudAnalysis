@@ -1,16 +1,10 @@
 package Main;
 
+import Analysis.Average_calc;
 import Analysis.DiscriptiveStats;
 import App.Application;
 import PreProcessing.CloudDataLoader;
-import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.api.java.function.PairFunction;
-import scala.Tuple2;
-
-import java.io.FileOutputStream;
-import java.io.PrintStream;
-import java.util.List;
 
 /**
  * Created by Rash on 17-04-2017.
@@ -29,58 +23,77 @@ public class CloudMainProcessor {
 
         System.out.println("Paths :"+land_file_path+":"+ocean_file_path);
 
-        Application land_context =new Application("cloud_data");
+        Application land_context =new Application("atmospheric_cloud_analysis");
 
         CloudDataLoader loader = new CloudDataLoader(land_file_path,ocean_file_path);
+
 
         try
         {
             JavaRDD<String> land_data= loader.load_land_data(land_context);
+
             JavaRDD<String> ocean_data= loader.load_ocean_data(land_context);
 
             System.out.println("Land data:"+land_data.count());
 
             System.out.println("Ocean Data:"+ocean_data.count());
 
+
+          //  land_data.cache();
+            //ocean_data.cache();
+
             DiscriptiveStats ds =new DiscriptiveStats();
 
-            JavaPairRDD<String,Long> land_stn_stats= ds.station_count(land_data);
-            JavaPairRDD<String,Long> ocean_stn_stats= ds.station_count(ocean_data);
+            //Get Land/Ocean top station information
+           /* ds.station_count(land_data,"topLandStns");
+            ds.station_count(ocean_data,"topOceanStns");
+            ds.location_agg(land_data,"landLocStats");
+            ds.location_agg(ocean_data,"oceanLocStats");*/
 
-            JavaPairRDD<Long,String> sorted_land_stn_stats =land_stn_stats.mapToPair(new PairFunction<Tuple2<String, Long>, Long, String>() {
-                @Override
-                public Tuple2<Long, String> call(Tuple2<String, Long> inputrecord) throws Exception {
-                    return new Tuple2<Long, String>(inputrecord._2(),inputrecord._1());
-                }
-            }).sortByKey(false);
-
-
-            JavaPairRDD<Long,String> sorted_ocean_stn_stats =ocean_stn_stats.mapToPair(new PairFunction<Tuple2<String, Long>, Long, String>() {
-                @Override
-                public Tuple2<Long, String> call(Tuple2<String, Long> inputrecord) throws Exception {
-                    return new Tuple2<Long, String>(inputrecord._2(),inputrecord._1());
-                }
-            }).sortByKey(false);
+            //Reading Counts for land and ocean per year
+            ds.readings_count(land_data,"land_agg_readings");
+            ds.readings_count(ocean_data,"ocean_agg_readings");
+            ds.readings_time_of_day(land_data,"land_time_data");
+            ds.readings_time_of_day(ocean_data,"ocean_time_data");
+            ds.lat_long_by_year(land_data,"land_year_by_lat_long");
+            ds.lat_long_by_year(ocean_data,"ocean_year_by_lat_long");
 
 
-            System.setOut(new PrintStream(new FileOutputStream("topStns")));
+             Average_calc calc=new Average_calc();
 
-            List<Tuple2<Long,String>> top_land_stns= sorted_land_stn_stats.take(20);
+            //Land Calculations -- Get averages per year for all the matrics
+            calc.average_calculation(land_data,"land_air_temp",24);
+            calc.average_calculation(land_data,"land_wind_speed",22);
+            calc.average_calculation(land_data,"land_brightness",4);
+            calc.average_calculation(land_data,"land_elevation",26);
+            calc.average_calculation(land_data,"land_total_cover",10);
+            calc.average_calculation(land_data,"land_lower_cloud",12);
+            calc.average_calculation(land_data,"land_mid_cover",13);
+            calc.average_calculation(land_data,"land_high_cover",14);
+            calc.average_calculation(land_data,"land_lower_cloud_base_ht",11);
+            calc.average_calculation(land_data,"land_sea_pressure",21);
+            calc.average_calculation(land_data,"land_dew_point",25);
+            calc.obscured_sky(land_data,"Obscured_land_data");
 
-            System.out.println("Station Number,Total Readings");
-
-            for(int land_i=0;land_i<top_land_stns.size();land_i++)
-            {
-                System.out.println(top_land_stns.get(land_i)._2()+","+top_land_stns.get(land_i)._1());
-            }
+            //Ship/Ocean Calculation --Get averages for all the matrics
+            calc.average_calculation(ocean_data,"ocean_air_temp",24);
+            calc.average_calculation(ocean_data,"ocean_wind_speed",22);
+            calc.average_calculation(ocean_data,"ocean_brightness",4);
+            calc.average_calculation(ocean_data,"ocean_sea_surf_temp",26);
+            calc.average_calculation(ocean_data,"ocean_total_cover",10);
+            calc.average_calculation(ocean_data,"ocean_lower_cloud",12);
+            calc.average_calculation(ocean_data,"ocean_mid_cover",13);
+            calc.average_calculation(ocean_data,"ocean_high_cover",14);
+            calc.average_calculation(ocean_data,"ocean_lower_cloud_base_ht",11);
+            calc.average_calculation(ocean_data,"ocean_sea_pressure",21);
+            calc.average_calculation(ocean_data,"ocean_dew_point",25);
+            calc.obscured_sky(ocean_data,"Obscured_ocean_data");
 
 
         }catch (Exception e)
         {
             System.out.println("Error in Exception of Data load"+e);
         }
-
-        System.out.println();
 
 
     }

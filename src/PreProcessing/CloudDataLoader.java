@@ -2,15 +2,9 @@ package PreProcessing;
 
 import App.Application;
 import org.apache.spark.api.java.function.Function;
-import org.apache.spark.deploy.master.ApplicationState;
-import scala.Tuple2;
-import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.api.java.function.Function2;
-import org.apache.spark.api.java.function.PairFunction;
-import org.apache.spark.SparkConf;
-import org.apache.spark.api.java.JavaSparkContext;
 
+import java.text.DecimalFormat;
 import java.util.*;
 import java.io.*;
 
@@ -34,62 +28,113 @@ public class CloudDataLoader implements Serializable {
         // a text file.
         JavaRDD<String> land_data_lines = as.getSparkContext().textFile(this.land_data_file_path);
 
-        JavaRDD<String> land_raw_data_rdd = land_data_lines.map(new Function<String, String>() {
+        JavaRDD<String> land_struct_rdd = land_data_lines.map(new Function<String, String>() {
             @Override
             public String call(String s) throws Exception {
 
-                String year = s.substring(0,2);  //Year
-                String mon = s.substring(2,4);  //Month
-                String day = s.substring(4,6);  //Day
-                String hr = s.substring(6,8);  //Hour
+                if(s.length()==80) {
+                    String year = s.substring(0, 2);  //Year
+                    String mon = s.substring(2, 4);  //Month
+                    String day = s.substring(4, 6);  //Day
+                    String hr = s.substring(6, 8);  //Hour
 
-                String brightness = String.valueOf(s.charAt(8));  //Brightness indicator
+                    String brightness = String.valueOf(s.charAt(8));  //Brightness indicator
 
-                String lat = s.substring(9,14).trim(); //Latitude
-                String lon = s.substring(14,19).trim();; //longitude
+                    DecimalFormat df = new DecimalFormat("###.##");
 
-                String stn_nbr = s.substring(19,24).trim();;  //Station Number
+                    float lat_intrim = Float.valueOf(s.substring(9, 14).trim())/100; //Latitude
+                    String lat = String.valueOf(df.format(lat_intrim));
 
-                String land_ocean_flg = String.valueOf(s.charAt(24)).trim();; // land and Ocean indicator
+                    float lon_intrim = Float.valueOf(s.substring(14, 19).trim())/100; //longitude
 
-                String p_ww = s.substring(25,27).trim();; //present weather
+                    String lon;
 
-                String total_cc = String.valueOf(s.charAt(27)); //Total Cloud Cover
+                    if(lon_intrim>180)
+                    {
+                        lon_intrim = ((lon_intrim+180) % 360) - 180;
 
-                String lwr_cloud_amt = s.substring(28,30).trim();  //Lower cloud amount
-
-                String lwr_cld_base_height = s.substring(30,32).trim(); //Lower Cloud Base Height
-
-                String low_cloud_type = s.substring(32,34).trim(); //Low cloud type
-
-                String mid_cloud_type = s.substring(34,36).trim(); //middle cloud type
-
-                String high_cloud_type = s.substring(36,38).trim();  //high cloud type
-
-                String mid_cloud_amt = s.substring(38,41).trim();
-                String high_cloud_amt = s.substring(41,44).trim();
-
-                String mid_cld_amt = String.valueOf(s.charAt(44)); //Total Cloud Cover
-                String high_cld_amt = String.valueOf(s.charAt(45)); //Total Cloud Cover
-
-                String change_code = s.substring(46,48).trim(); //Change code
-
-                String solar_alt = s.substring(48,52).trim(); //Solar Altitude
-                String lunar_illum = s.substring(52,55).concat(String.valueOf(s.charAt(55))).trim(); //relative Lunar illuminance
+                        lon = String.valueOf(df.format(lon_intrim));
+                    }else
+                    {
+                        lon = String.valueOf(df.format(lon_intrim));
+                    }
 
 
-                String land_obs_data =year.concat(",").concat(mon).concat(",").concat(day).concat(",").concat(hr).concat(",")
-                                            .concat(brightness).concat(",").concat(lat).concat(",").concat(lon).concat(",")
-                                            .concat(stn_nbr).concat(",").concat(land_ocean_flg).concat(",").concat(p_ww).concat(",")
-                                            .concat(total_cc).concat(",").concat(lwr_cld_base_height).concat(",").concat(lwr_cloud_amt)
-                                            .concat(",").concat(mid_cloud_amt).concat(",").concat(high_cloud_amt).concat(",").concat(low_cloud_type)
-                                            .concat(",").concat(mid_cloud_type).concat(",").concat(high_cloud_type).concat(",").concat(solar_alt)
-                                            .concat(",").concat(lunar_illum).concat(",").concat(change_code);
+                    String stn_nbr = s.substring(19, 24).trim();  //Station Number
 
-                return land_obs_data;
+                    String land_ocean_flg = String.valueOf(s.charAt(24)).trim(); // land and Ocean indicator
+
+                    String p_ww = s.substring(25, 27).trim(); //present weather
+
+                    String total_cc = String.valueOf(s.charAt(27)); //Total Cloud Cover
+
+                    String lwr_cloud_amt = s.substring(28, 30).trim();  //Lower cloud amount
+
+                    String lwr_cld_base_height = s.substring(30, 32).trim(); //Lower Cloud Base Height
+
+                    String low_cloud_type = s.substring(32, 34).trim(); //Low cloud type
+
+                    String mid_cloud_type = s.substring(34, 36).trim(); //middle cloud type
+
+                    String high_cloud_type = s.substring(36, 38).trim();  //high cloud type
+
+                    String mid_cloud_amt = String.valueOf(Integer.valueOf(s.substring(38, 41).trim())/100);
+                    String high_cloud_amt =String.valueOf((Integer.valueOf(s.substring(41, 44).trim())/100));
+
+                    String mid_cld_amt = String.valueOf(s.charAt(44)); //Total Cloud Cover
+                    String high_cld_amt = String.valueOf(s.charAt(45)); //Total Cloud Cover
+
+                    String change_code = s.substring(46, 48).trim(); //Change code
+
+                    String solar_alt = String.valueOf((Integer.valueOf(s.substring(48, 52).trim())/10)); //Solar Altitude
+                    String lunar_illum = String.valueOf((Integer.valueOf(s.substring(52, 56).trim())/100)); //relative Lunar illuminance
+
+                    String sea_pressure = String.valueOf((Integer.valueOf(s.substring(56, 61).trim())/10)); //sea pressure level
+
+                    String wind_speed = String.valueOf((Integer.valueOf(s.substring(61, 64).trim())/10));//wind speed
+
+                    String wind_dir = s.substring(64, 67).trim(); //wind direction
+
+                    String air_temp = String.valueOf((Integer.valueOf(s.substring(67, 71).trim())/10));//air temperature
+
+                    String dew_point = String.valueOf((Integer.valueOf(s.substring(71, 74).trim())/10)); //dew point depression
+
+                    String elevation = s.substring(74, 78).trim(); //land elevation
+
+                    String wind_speed_ind = String.valueOf(s.charAt(78)); //
+
+                    String pressure_flag = String.valueOf(s.charAt(79)); //
+
+
+                    String land_obs_data = year.concat(",").concat(mon).concat(",").concat(day).concat(",").concat(hr).concat(",")
+                            .concat(brightness).concat(",").concat(lat).concat(",").concat(lon).concat(",")
+                            .concat(stn_nbr).concat(",").concat(land_ocean_flg).concat(",").concat(p_ww).concat(",")
+                            .concat(total_cc).concat(",").concat(lwr_cld_base_height).concat(",").concat(lwr_cloud_amt)
+                            .concat(",").concat(mid_cloud_amt).concat(",").concat(high_cloud_amt).concat(",").concat(low_cloud_type)
+                            .concat(",").concat(mid_cloud_type).concat(",").concat(high_cloud_type).concat(",").concat(solar_alt)
+                            .concat(",").concat(lunar_illum).concat(",").concat(change_code).concat(",").concat(sea_pressure).concat(",")
+                            .concat(wind_speed).concat(",").concat(wind_dir).concat(",").concat(air_temp).concat(",").concat(dew_point)
+                            .concat(",").concat(elevation);
+
+                    return land_obs_data;
+                }else
+                {
+                    return null;
+                }
             }
         });
 
+        JavaRDD<String> land_raw_data_rdd= land_struct_rdd.filter(new Function<String, Boolean>() {
+            @Override
+            public Boolean call(String s) throws Exception {
+                if(s==null) {
+                    return false;
+                }else
+                {
+                    return true;
+                }
+            }
+        });
 
         return land_raw_data_rdd;
 
@@ -99,62 +144,113 @@ public class CloudDataLoader implements Serializable {
 
         JavaRDD<String> ocean_data_lines = as.getSparkContext().textFile(this.ocean_data_file_path);
 
-        JavaRDD<String> ocean_raw_data_rdd = ocean_data_lines.map(new Function<String, String>() {
+        JavaRDD<String> ocean_struct_rdd = ocean_data_lines.map(new Function<String, String>() {
             @Override
             public String call(String s) throws Exception {
 
-                char[] str= s.toCharArray();
+                if(s.length()==80) {
+
+                    String year = s.substring(0, 2);  //Year
+                    String mon = s.substring(2, 4);  //Month
+                    String day = s.substring(4, 6);  //Day
+                    String hr = s.substring(6, 8);  //Hour
+
+                    String brightness = String.valueOf(s.charAt(8));  //Brightness indicator
+
+                    DecimalFormat df = new DecimalFormat("###.##");
+
+                    float lat_intrim = Float.valueOf(s.substring(9, 14).trim())/100; //Latitude
+                    String lat = String.valueOf(df.format(lat_intrim));
+
+                    float lon_intrim = Float.valueOf(s.substring(14, 19).trim())/100; //longitude
+
+                    String lon;
+
+                    if(lon_intrim>180)
+                    {
+                        lon_intrim = ((lon_intrim+180) % 360) - 180;
+
+                        lon = String.valueOf(df.format(lon_intrim));
+                    }else
+                    {
+                        lon = String.valueOf(df.format(lon_intrim));
+                    }
 
 
-                String year = s.substring(0,2);  //Year
-                String mon = s.substring(2,4);  //Month
-                String day = s.substring(4,6);  //Day
-                String hr = s.substring(6,8);  //Hour
+                    String stn_nbr = s.substring(19, 24).trim();  //Station Number
 
-                String brightness = String.valueOf(s.charAt(8));  //Brightness indicator
+                    String land_ocean_flg = String.valueOf(s.charAt(24)).trim(); // land and Ocean indicator
 
-                String lat = s.substring(9,14).trim(); //Latitude
-                String lon = s.substring(14,19).trim(); //longitude
+                    String p_ww = s.substring(25, 27).trim(); //present weather
 
-                String stn_nbr = s.substring(19,24).trim();  //Station Number
+                    String total_cc = String.valueOf(s.charAt(27)); //Total Cloud Cover
 
-                String land_ocean_flg = String.valueOf(s.charAt(24)); // land and Ocean indicator
+                    String lwr_cloud_amt = s.substring(28, 30).trim();  //Lower cloud amount
 
-                String p_ww = s.substring(25,27).trim(); //present weather
+                    String lwr_cld_base_height = s.substring(30, 32).trim(); //Lower Cloud Base Height
 
-                String total_cc = String.valueOf(s.charAt(27)); //Total Cloud Cover
+                    String low_cloud_type = s.substring(32, 34).trim(); //Low cloud type
 
-                String lwr_cloud_amt = s.substring(28,30).trim();  //Lower cloud amount
+                    String mid_cloud_type = s.substring(34, 36).trim(); //middle cloud type
 
-                String lwr_cld_base_height = s.substring(30,32).trim(); //Lower Cloud Base Height
+                    String high_cloud_type = s.substring(36, 38).trim();  //high cloud type
 
-                String low_cloud_type = s.substring(32,34).trim(); //Low cloud type
+                    String mid_cloud_amt = String.valueOf(Integer.valueOf(s.substring(38, 41).trim())/100);
+                    String high_cloud_amt =String.valueOf((Integer.valueOf(s.substring(41, 44).trim())/100));
 
-                String mid_cloud_type = s.substring(34,36).trim(); //middle cloud type
+                    String mid_cld_amt = String.valueOf(s.charAt(44)); //Total Cloud Cover
+                    String high_cld_amt = String.valueOf(s.charAt(45)); //Total Cloud Cover
 
-                String high_cloud_type = s.substring(36,38).trim();  //high cloud type
+                    String change_code = s.substring(46, 48).trim(); //Change code
 
-                String mid_cloud_amt = s.substring(38,41).trim();
-                String high_cloud_amt = s.substring(41,44).trim();
+                    String solar_alt = String.valueOf((Integer.valueOf(s.substring(48, 52).trim())/10)); //Solar Altitude
+                    String lunar_illum = String.valueOf((Integer.valueOf(s.substring(52, 56).trim())/100)); //relative Lunar illuminance
 
-                String mid_cld_amt = String.valueOf(s.charAt(44)); //Total Cloud Cover
-                String high_cld_amt = String.valueOf(s.charAt(45)); //Total Cloud Cover
+                    String sea_pressure = String.valueOf((Integer.valueOf(s.substring(56, 61).trim())/10)); //sea pressure level
 
-                String change_code = s.substring(46,48).trim(); //Change code
+                    String wind_speed = String.valueOf((Integer.valueOf(s.substring(61, 64).trim())/10));//wind speed
 
-                String solar_alt = s.substring(48,52).trim(); //Solar Altitude
-                String lunar_illum = s.substring(52,55).concat(String.valueOf(s.charAt(55))).trim(); //relative Lunar illuminance
+                    String wind_dir = s.substring(64, 67).trim(); //wind direction
+
+                    String air_temp = String.valueOf((Integer.valueOf(s.substring(67, 71).trim())/10));//air temperature
+
+                    String dew_point = String.valueOf((Integer.valueOf(s.substring(71, 74).trim())/10)); //dew point depression
+
+                    String sea_surface_temp = String.valueOf((Integer.valueOf(s.substring(74, 78).trim())/10)); //Sea Surface temperature
+
+                    String wind_speed_ind = String.valueOf(s.charAt(78)); //
+
+                    String pressure_flag = String.valueOf(s.charAt(79)); //
 
 
-                String ocean_obs_data =year.concat(",").concat(mon).concat(",").concat(day).concat(",").concat(hr).concat(",")
-                        .concat(brightness).concat(",").concat(lat).concat(",").concat(lon).concat(",")
-                        .concat(stn_nbr).concat(",").concat(land_ocean_flg).concat(",").concat(p_ww).concat(",")
-                        .concat(total_cc).concat(",").concat(lwr_cld_base_height).concat(",").concat(lwr_cloud_amt)
-                        .concat(",").concat(mid_cloud_amt).concat(",").concat(high_cloud_amt).concat(",").concat(low_cloud_type)
-                        .concat(",").concat(mid_cloud_type).concat(",").concat(high_cloud_type).concat(",").concat(solar_alt)
-                        .concat(",").concat(lunar_illum).concat(",").concat(change_code);
+                    String ocean_obs_data = year.concat(",").concat(mon).concat(",").concat(day).concat(",").concat(hr).concat(",")
+                            .concat(brightness).concat(",").concat(lat).concat(",").concat(lon).concat(",")
+                            .concat(stn_nbr).concat(",").concat(land_ocean_flg).concat(",").concat(p_ww).concat(",")
+                            .concat(total_cc).concat(",").concat(lwr_cld_base_height).concat(",").concat(lwr_cloud_amt)
+                            .concat(",").concat(mid_cloud_amt).concat(",").concat(high_cloud_amt).concat(",").concat(low_cloud_type)
+                            .concat(",").concat(mid_cloud_type).concat(",").concat(high_cloud_type).concat(",").concat(solar_alt)
+                            .concat(",").concat(lunar_illum).concat(",").concat(change_code).concat(",").concat(sea_pressure).concat(",")
+                            .concat(wind_speed).concat(",").concat(wind_dir).concat(",").concat(air_temp).concat(",").concat(dew_point)
+                            .concat(",").concat(sea_surface_temp);
 
-                return ocean_obs_data;
+                    return ocean_obs_data;
+                }else
+                {
+                    return null;
+                }
+            }
+        });
+
+
+        JavaRDD<String> ocean_raw_data_rdd= ocean_struct_rdd.filter(new Function<String, Boolean>() {
+            @Override
+            public Boolean call(String s) throws Exception {
+                if(s==null) {
+                    return false;
+                }else
+                {
+                    return true;
+                }
             }
         });
 

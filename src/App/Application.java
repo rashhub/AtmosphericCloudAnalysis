@@ -14,7 +14,7 @@ public class Application {
 
 
     public Application(String AppName) {
-        SparkConf conf = new SparkConf().setMaster("local[*]").setAppName(AppName).set("spark.executor.memory", "4g")
+        SparkConf conf = new SparkConf().setAppName(AppName).set("spark.executor.memory", "16g")
                 .set("spark.network.timeout","1000").set("spark.executor.heartbeatInterval","100");
 
         this.sparkContext = new JavaSparkContext(conf);
